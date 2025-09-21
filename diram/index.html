@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIRAMC - Directed Instruction RAM Debugger | OBINexus</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff88;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            border-bottom: 2px solid #00ff88;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .tagline {
+            color: #888;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+
+        /* Main Container */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 120px);
+        }
+
+        /* Left Panel - Features */
+        .features-panel {
+            background: rgba(26, 26, 46, 0.3);
+            border: 1px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .feature-item {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .feature-item:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateX(5px);
+        }
+
+        .feature-title {
+            color: #00ff88;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .feature-desc {
+            color: #ccc;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        /* Center - 3D Canvas */
+        .canvas-container {
+            position: relative;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #diram-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #00ff88;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-line {
+            color: #00ff88;
+            font-size: 0.9rem;
+            margin: 2px 0;
+        }
+
+        /* Right Panel - Code/Commands */
+        .code-panel {
+            background: rgba(26, 26, 46, 0.3);
+            border: 1px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .code-block {
+            background: #000;
+            border: 1px solid #333;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+        }
+
+        .code-title {
+            color: #00ff88;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .code {
+            color: #0ff;
+            line-height: 1.5;
+        }
+
+        .comment {
+            color: #666;
+        }
+
+        .keyword {
+            color: #ff00ff;
+        }
+
+        .string {
+            color: #ffff00;
+        }
+
+        /* Control Buttons */
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 255, 136, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .control-btn.active {
+            background: #00ff88;
+            color: #000;
+        }
+
+        /* Metrics Display */
+        .metrics-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff88;
+            padding: 15px;
+            border-radius: 5px;
+            min-width: 200px;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+
+        .metric-label {
+            color: #888;
+        }
+
+        .metric-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .coherence-bar {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .coherence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #00ff88);
+            width: 95.4%;
+            transition: width 0.3s ease;
+        }
+
+        /* Terminal Output */
+        .terminal {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: #000;
+            border: 1px solid #00ff88;
+            padding: 10px;
+            border-radius: 5px;
+            width: 300px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+
+        .terminal-line {
+            color: #0ff;
+            margin: 2px 0;
+        }
+
+        .terminal-error {
+            color: #ff0066;
+        }
+
+        .terminal-success {
+            color: #00ff88;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 500px auto;
+            }
+            
+            .features-panel, .code-panel {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>DIRAMC - Directed Instruction RAM Debugger</h1>
+        <div class="tagline">Quality-Assured Library Debugging with 95.4% Coherence Target</div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Panel - Features -->
+        <div class="features-panel">
+            <h2 style="color: #00ff88; margin-bottom: 20px; text-align: center;">Core Features</h2>
+            
+            <div class="feature-item">
+                <div class="feature-title">📊 Trace Analysis</div>
+                <div class="feature-desc">Real-time tracing of .so library calls with full stack unwinding and memory allocation tracking.</div>
+            </div>
+            
+            <div class="feature-item">
+                <div class="feature-title">🎯 95.4% Quality Target</div>
+                <div class="feature-desc">Automated QA metrics ensure your libraries meet the coherence threshold for production deployment.</div>
+            </div>
+            
+            <div class="feature-item">
+                <div class="feature-title">🔍 GDB Integration</div>
+                <div class="feature-desc">Seamless integration with GDB for automated debugging workflows and breakpoint management.</div>
+            </div>
+            
+            <div class="feature-item">
+                <div class="feature-title">⚡ Detach Mode</div>
+                <div class="feature-desc">Run debugging sessions in detached mode for continuous monitoring without blocking execution.</div>
+            </div>
+            
+            <div class="feature-item">
+                <div class="feature-title">🔐 Memory Safety</div>
+                <div class="feature-desc">Detect buffer overflows, use-after-free, and memory leaks before they reach production.</div>
+            </div>
+            
+            <div class="feature-item">
+                <div class="feature-title">📝 Unit Test Helper</div>
+                <div class="feature-desc">Automatic test generation for .c/.h files with minimal developer intervention required.</div>
+            </div>
+        </div>
+
+        <!-- Center - 3D Visualization -->
+        <div class="canvas-container">
+            <canvas id="diram-canvas"></canvas>
+            
+            <div class="canvas-overlay">
+                <div class="status-line">MODE: <span id="mode-display">TRACE</span></div>
+                <div class="status-line">PID: <span id="pid-display">31337</span></div>
+                <div class="status-line">LIB: <span id="lib-display">libexample.so</span></div>
+            </div>
+            
+            <div class="metrics-panel">
+                <div class="metric-item">
+                    <span class="metric-label">Coherence:</span>
+                    <span class="metric-value">95.4%</span>
+                </div>
+                <div class="coherence-bar">
+                    <div class="coherence-fill"></div>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Functions:</span>
+                    <span class="metric-value" id="func-count">247</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Coverage:</span>
+                    <span class="metric-value" id="coverage">87.3%</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Errors:</span>
+                    <span class="metric-value" id="error-count">3</span>
+                </div>
+            </div>
+            
+            <div class="terminal">
+                <div class="terminal-line">$ diram.exe --trace ./lib/libtest.so --detach</div>
+                <div class="terminal-success">[DIRAM] Library loaded: libtest.so</div>
+                <div class="terminal-line">[TRACE] Function malloc() @ 0x7fff8934</div>
+                <div class="terminal-line">[TRACE] Function free() @ 0x7fff8940</div>
+                <div class="terminal-error">[ERROR] Memory leak detected: 1024 bytes</div>
+                <div class="terminal-success">[QA] Coherence: 95.4% - PASS</div>
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn" id="trace-btn">Start Trace</button>
+                <button class="control-btn" id="debug-btn">Debug Mode</button>
+                <button class="control-btn" id="analyze-btn">Analyze</button>
+                <button class="control-btn" id="report-btn">Generate Report</button>
+            </div>
+        </div>
+
+        <!-- Right Panel - Code Examples -->
+        <div class="code-panel">
+            <h2 style="color: #00ff88; margin-bottom: 20px; text-align: center;">Usage Examples</h2>
+            
+            <div class="code-block">
+                <div class="code-title">Basic Trace Command</div>
+                <div class="code">
+                    $ diram.exe --trace ./path/to/lib/*.so --detach<br>
+                    <span class="comment"># Traces all .so files in detached mode</span><br>
+                    <span class="comment"># Outputs to diram.log with QA metrics</span>
+                </div>
+            </div>
+            
+            <div class="code-block">
+                <div class="code-title">C Integration</div>
+                <div class="code">
+                    <span class="keyword">#include</span> <span class="string">&lt;diram.h&gt;</span><br><br>
+                    <span class="keyword">int</span> main() {<br>
+                    &nbsp;&nbsp;<span class="comment">// Initialize DIRAM tracer</span><br>
+                    &nbsp;&nbsp;diram_init();<br>
+                    &nbsp;&nbsp;diram_set_target(<span class="string">"95.4"</span>);<br>
+                    &nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;<span class="comment">// Your code here</span><br>
+                    &nbsp;&nbsp;void* ptr = malloc(1024);<br>
+                    &nbsp;&nbsp;<br>
+                    &nbsp;&nbsp;<span class="comment">// DIRAM tracks automatically</span><br>
+                    &nbsp;&nbsp;diram_report();<br>
+                    &nbsp;&nbsp;<span class="keyword">return</span> 0;<br>
+                    }
+                </div>
+            </div>
+            
+            <div class="code-block">
+                <div class="code-title">Makefile Integration</div>
+                <div class="code">
+                    CFLAGS += -g -O0<br>
+                    LDFLAGS += -ldiram<br><br>
+                    <span class="comment"># Enable DIRAM debugging</span><br>
+                    debug: CFLAGS += -DDIRAM_TRACE<br>
+                    debug: $(TARGET)<br>
+                    &nbsp;&nbsp;diram.exe --trace $(TARGET) --report
+                </div>
+            </div>
+            
+            <div class="code-block">
+                <div class="code-title">GDB Script</div>
+                <div class="code">
+                    <span class="comment"># .gdbinit for DIRAM</span><br>
+                    source diram.gdb<br>
+                    diram-attach<br>
+                    <br>
+                    <span class="comment"># Set breakpoints on errors</span><br>
+                    diram-break-on-leak<br>
+                    diram-break-on-overflow<br>
+                    <br>
+                    <span class="comment"># Run with QA metrics</span><br>
+                    diram-run --qa-target 95.4
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Implementation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        class DIRAMDebuggerViz {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, 
+                    document.getElementById('diram-canvas').clientWidth / 
+                    document.getElementById('diram-canvas').clientHeight, 
+                    0.1, 1000);
+                
+                const canvas = document.getElementById('diram-canvas');
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas,
+                    alpha: true,
+                    antialias: true 
+                });
+                
+                this.libraries = [];
+                this.traces = [];
+                this.memoryBlocks = [];
+                this.functions = [];
+                this.activeTrace = false;
+                
+                this.init();
+                this.createDebuggerSchema();
+                this.animate();
+                this.setupControls();
+            }
+            
+            init() {
+                const canvas = document.getElementById('diram-canvas');
+                this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+                this.renderer.setClearColor(0x0a0a1a, 1);
+                
+                this.camera.position.set(15, 10, 15);
+                this.camera.lookAt(0, 0, 0);
+                
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 1);
+                this.scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0x00ff88, 0.5);
+                directionalLight.position.set(10, 10, 5);
+                this.scene.add(directionalLight);
+                
+                const pointLight = new THREE.PointLight(0x00ff88, 0.5, 15);
+                pointLight.position.set(0, 5, 0);
+                this.scene.add(pointLight);
+                
+                // Grid
+                const gridHelper = new THREE.GridHelper(20, 20, 0x00ff88, 0x003333);
+                this.scene.add(gridHelper);
+                
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    const canvas = document.getElementById('diram-canvas');
+                    this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+                });
+            }
+            
+            createDebuggerSchema() {
+                // Central DIRAM Core
+                const coreGeometry = new THREE.OctahedronGeometry(2, 0);
+                const coreMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x00ff88,
+                    emissive: 0x00ff88,
+                    emissiveIntensity: 0.2,
+                    wireframe: true
+                });
+                this.core = new THREE.Mesh(coreGeometry, coreMaterial);
+                this.core.position.y = 5;
+                this.scene.add(this.core);
+                
+                // Create Library Nodes (.so files)
+                const libPositions = [
+                    { x: -8, z: 0 },
+                    { x: 8, z: 0 },
+                    { x: 0, z: -8 },
+                    { x: 0, z: 8 },
+                    { x: -5.6, z: -5.6 },
+                    { x: 5.6, z: -5.6 },
+                    { x: -5.6, z: 5.6 },
+                    { x: 5.6, z: 5.6 }
+                ];
+                
+                libPositions.forEach((pos, index) => {
+                    // Library container
+                    const libGeometry = new THREE.BoxGeometry(2, 3, 2);
+                    const libMaterial = new THREE.MeshPhongMaterial({
+                        color: 0x1a1a2e,
+                        emissive: 0x0000ff,
+                        emissiveIntensity: 0.1
+                    });
+                    const lib = new THREE.Mesh(libGeometry, libMaterial);
+                    lib.position.set(pos.x, 1.5, pos.z);
+                    lib.userData = { type: 'library', id: index, errors: 0 };
+                    this.libraries.push(lib);
+                    this.scene.add(lib);
+                    
+                    // Function symbols inside library
+                    for (let i = 0; i < 3; i++) {
+                        const funcGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                        const funcMaterial = new THREE.MeshBasicMaterial({
+                            color: 0xffff00,
+                            emissive: 0xffff00,
+                            emissiveIntensity: 0.5
+                        });
+                        const func = new THREE.Mesh(funcGeometry, funcMaterial);
+                        func.position.set(
+                            pos.x + (Math.random() - 0.5) * 1.5,
+                            1.5 + (i - 1) * 0.8,
+                            pos.z + (Math.random() - 0.5) * 1.5
+                        );
+                        func.userData = { type: 'function', libId: index };
+                        this.functions.push(func);
+                        this.scene.add(func);
+                    }
+                    
+                    // Connection to core
+                    const points = [
+                        new THREE.Vector3(pos.x, 1.5, pos.z),
+                        new THREE.Vector3(0, 5, 0)
+                    ];
+                    const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const lineMaterial = new THREE.LineBasicMaterial({
+                        color: 0x00ff88,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    const line = new THREE.Line(lineGeometry, lineMaterial);
+                    this.scene.add(line);
+                });
+                
+                // Memory Grid (Bottom layer)
+                this.createMemoryGrid();
+                
+                // Create trace particles
+                this.createTraceParticles();
+                
+                // Error indicators
+                this.createErrorIndicators();
+            }
+            
+            createMemoryGrid() {
+                const gridSize = 8;
+                const spacing = 2;
+                
+                for (let x = 0; x < gridSize; x++) {
+                    for (let z = 0; z < gridSize; z++) {
+                        const memGeometry = new THREE.BoxGeometry(0.8, 0.2, 0.8);
+                        const memMaterial = new THREE.MeshPhongMaterial({
+                            color: 0x003333,
+                            emissive: 0x00ff88,
+                            emissiveIntensity: 0.05,
+                            transparent: true,
+                            opacity: 0.8
+                        });
+                        
+                        const memBlock = new THREE.Mesh(memGeometry, memMaterial);
+                        memBlock.position.set(
+                            (x - 3.5) * spacing,
+                            0,
+                            (z - 3.5) * spacing
+                        );
+                        memBlock.userData = {
+                            type: 'memory',
+                            allocated: false,
+                            address: `0x${(0x7fff0000 + x * 256 + z).toString(16)}`
+                        };
+                        
+                        this.memoryBlocks.push(memBlock);
+                        this.scene.add(memBlock);
+                    }
+                }
+            }
+            
+            createTraceParticles() {
+                const particleCount = 200;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    // Particles flow between libraries and core
+                    const angle = (i / particleCount) * Math.PI * 2;
+                    const radius = 10;
+                    
+                    positions[i * 3] = Math.cos(angle) * radius;
+                    positions[i * 3 + 1] = Math.random() * 8;
+                    positions[i * 3 + 2] = Math.sin(angle) * radius;
+                    
+                    // Color based on trace type
+                    const color = new THREE.Color(i % 3 === 0 ? 0x00ff88 : 
+                                                 i % 3 === 1 ? 0xffff00 : 0xff00ff);
+                    colors[i * 3] = color.r;
+                    colors[i * 3 + 1] = color.g;
+                    colors[i * 3 + 2] = color.b;
+                }
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                const material = new THREE.PointsMaterial({
+                    size: 0.15,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                this.traceParticles = new THREE.Points(geometry, material);
+                this.scene.add(this.traceParticles);
+            }
+            
+            createErrorIndicators() {
+                // Error halos around problematic libraries
+                this.errorHalos = [];
+                
+                this.libraries.forEach(lib => {
+                    const haloGeometry = new THREE.RingGeometry(2.5, 3, 32);
+                    const haloMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xff0000,
+                        transparent: true,
+                        opacity: 0,
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+                    halo.position.copy(lib.position);
+                    halo.rotation.x = Math.PI / 2;
+                    halo.visible = false;
+                    
+                    this.errorHalos.push(halo);
+                    this.scene.add(halo);
+                });
+            }
+            
+            simulateTrace() {
+                this.activeTrace = !this.activeTrace;
+                
+                if (this.activeTrace) {
+                    // Light up random functions
+                    setInterval(() => {
+                        const func = this.functions[Math.floor(Math.random() * this.functions.length)];
+                        func.material.color.setHex(0x00ff00);
+                        setTimeout(() => {
+                            func.material.color.setHex(0xffff00);
+                        }, 200);
+                    }, 100);
+                    
+                    // Allocate random memory blocks
+                    setInterval(() => {
+                        const mem = this.memoryBlocks[Math.floor(Math.random() * this.memoryBlocks.length)];
+                        if (!mem.userData.allocated) {
+                            mem.userData.allocated = true;
+                            mem.material.emissiveIntensity = 0.5;
+                            mem.material.color.setHex(0x00ff88);
+                        }
+                    }, 500);
+                }
+            }
+            
+            simulateDebug() {
+                // Show error in random library
+                const libIndex = Math.floor(Math.random() * this.libraries.length);
+                const lib = this.libraries[libIndex];
+                const halo = this.errorHalos[libIndex];
+                
+                lib.userData.errors++;
+                halo.visible = true;
+                halo.material.opacity = 0.5;
+                
+                // Flash red
+                lib.material.emissive.setHex(0xff0000);
+                setTimeout(() => {
+                    lib.material.emissive.setHex(0x0000ff);
+                    halo.material.opacity = 0.3;
+                }, 1000);
+                
+                // Update error count
+                document.getElementById('error-count').textContent = 
+                    this.libraries.reduce((sum, l) => sum + l.userData.errors, 0);
+            }
+            
+            analyzeLibraries() {
+                // Simulate analysis
+                this.libraries.forEach((lib, index) => {
+                    setTimeout(() => {
+                        // Pulse effect
+                        const scale = 1.2;
+                        lib.scale.set(scale, scale, scale);
+                        lib.material.emissiveIntensity = 0.5;
+                        
+                        setTimeout(() => {
+                            lib.scale.set(1, 1, 1);
+                            lib.material.emissiveIntensity = 0.1;
+                        }, 300);
+                    }, index * 100);
+                });
+                
+                // Update metrics
+                setTimeout(() => {
+                    document.getElementById('func-count').textContent = 
+                        Math.floor(Math.random() * 100 + 200);
+                    document.getElementById('coverage').textContent = 
+                        (Math.random() * 20 + 80).toFixed(1) + '%';
+                }, 1000);
+            }
+            
+            generateReport() {
+                // Visual report generation
+                this.core.material.emissiveIntensity = 0.8;
+                this.core.material.color.setHex(0xffffff);
+                
+                setTimeout(() => {
+                    this.core.material.color.setHex(0x00ff88);
+                    this.core.material.emissiveIntensity = 0.2;
+                    
+                    // Add to terminal
+                    const terminal = document.querySelector('.terminal');
+                    const newLine = document.createElement('div');
+                    newLine.className = 'terminal-success';
+                    newLine.textContent = '[REPORT] QA Report generated: report_' + Date.now() + '.json';
+                    terminal.appendChild(newLine);
+                    terminal.scrollTop = terminal.scrollHeight;
+                }, 1000);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // Rotate core
+                if (this.core) {
+                    this.core.rotation.x += 0.005;
+                    this.core.rotation.y += 0.01;
+                }
+                
+                // Animate trace particles
+                if (this.traceParticles) {
+                    const positions = this.traceParticles.geometry.attributes.position.array;
+                    const time = Date.now() * 0.001;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        const angle = (i / positions.length) * Math.PI * 2 + time;
+                        const radius = 10 + Math.sin(time + i) * 2;
+                        
+                        positions[i] = Math.cos(angle) * radius;
+                        positions[i + 1] = positions[i + 1] + Math.sin(time + i) * 0.05;
+                        positions[i + 2] = Math.sin(angle) * radius;
+                        
+                        // Wrap height
+                        if (positions[i + 1] > 8) positions[i + 1] = 0;
+                        if (positions[i + 1] < 0) positions[i + 1] = 8;
+                    }
+                    
+                    this.traceParticles.geometry.attributes.position.needsUpdate = true;
+                    this.traceParticles.rotation.y += 0.001;
+                }
+                
+                // Pulse functions
+                this.functions.forEach((func, i) => {
+                    const scale = 1 + Math.sin(Date.now() * 0.002 + i) * 0.1;
+                    func.scale.set(scale, scale, scale);
+                });
+                
+                // Camera orbit
+                const time = Date.now() * 0.0005;
+                this.camera.position.x = Math.cos(time) * 15;
+                this.camera.position.z = Math.sin(time) * 15;
+                this.camera.lookAt(0, 2, 0);
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+            
+            setupControls() {
+                document.getElementById('trace-btn').addEventListener('click', (e) => {
+                    this.simulateTrace();
+                    e.target.textContent = this.activeTrace ? 'Stop Trace' : 'Start Trace';
+                    e.target.classList.toggle('active');
+                    document.getElementById('mode-display').textContent = 
+                        this.activeTrace ? 'TRACING' : 'IDLE';
+                });
+                
+                document.getElementById('debug-btn').addEventListener('click', () => {
+                    this.simulateDebug();
+                    document.getElementById('mode-display').textContent = 'DEBUG';
+                });
+                
+                document.getElementById('analyze-btn').addEventListener('click', () => {
+                    this.analyzeLibraries();
+                    document.getElementById('mode-display').textContent = 'ANALYZE';
+                });
+                
+                document.getElementById('report-btn').addEventListener('click', () => {
+                    this.generateReport();
+                });
+            }
+        }
+        
+        // Initialize visualizer when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new DIRAMDebuggerViz();
+        });
+    </script>
+</body>
+</html>
